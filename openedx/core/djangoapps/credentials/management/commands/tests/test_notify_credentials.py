@@ -60,6 +60,27 @@ class TestNotifyCredentials(TestCase):
         self.assertEqual(list(mock_send.call_args[0][0]), [self.cert1, self.cert2])
         self.assertEqual(list(mock_send.call_args[0][1]), [self.grade1, self.grade2])
 
+    @freeze_time(datetime(2017, 5, 2))
+    @mock.patch(COMMAND_MODULE + '.Command.send_notifications')
+    def test_auto_execution(self, mock_send):
+
+        with freeze_time(datetime(2017, 5, 1)):
+            cert1 = GeneratedCertificateFactory(user=self.user, course_id='course-v1:edX+Test+11')
+        with freeze_time(datetime(2017, 5, 2)):
+            cert2 = GeneratedCertificateFactory(user=self.user, course_id='course-v1:edX+Test+22')
+
+        with freeze_time(datetime(2017, 5, 1)):
+            grade1 = PersistentCourseGrade.objects.create(user_id=self.user.id, course_id='course-v1:edX+Test+11',
+                                                          percent_grade=1)
+        with freeze_time(datetime(2017, 5, 2)):
+            grade2 = PersistentCourseGrade.objects.create(user_id=self.user.id, course_id='course-v1:edX+Test+22',
+                                                          percent_grade=1)
+
+        call_command(Command(), '--auto')
+        self.assertTrue(mock_send.called)
+        self.assertListEqual(list(mock_send.call_args[0][0]), [cert1, cert2])
+        self.assertListEqual(list(mock_send.call_args[0][1]), [grade1, grade2])
+
     @mock.patch(COMMAND_MODULE + '.Command.send_notifications')
     def test_date_args(self, mock_send):
         call_command(Command(), '--start-date', '2017-01-31')
